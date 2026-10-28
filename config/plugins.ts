@@ -23,23 +23,50 @@ const deniedTypes = [
   'application/x-mach-binary',
 ];
 
-const config = ({ env }: Core.Config.Shared.ConfigParams): Core.Config.Plugin => ({
-  'users-permissions': {
-    config: {
-      jwtManagement: 'refresh',
-      sessions: {
-        httpOnly: true,
+const config = ({ env }: Core.Config.Shared.ConfigParams): Core.Config.Plugin => {
+  const cloudinaryReady = Boolean(
+    env('CLOUDINARY_NAME') && env('CLOUDINARY_KEY') && env('CLOUDINARY_SECRET')
+  );
+
+  if (env('NODE_ENV') === 'production' && !cloudinaryReady) {
+    throw new Error(
+      'CLOUDINARY_NAME / CLOUDINARY_KEY / CLOUDINARY_ SECRET'
+    );
+  }
+
+  return {
+    'users-permissions': {
+      config: {
+        jwtManagement: 'refresh',
+        sessions: {
+          httpOnly: true,
+        },
       },
     },
-  },
-  upload: {
-    config: {
-      security: {
-        allowedTypes: allowedMediaTypes,
-        deniedTypes,
+    upload: {
+      config: {
+        ...(cloudinaryReady
+          ? {
+            provider: 'cloudinary',
+            providerOptions: {
+              cloud_name: env('CLOUDINARY_NAME'),
+              api_key: env('CLOUDINARY_KEY'),
+              api_secret: env('CLOUDINARY_SECRET'),
+            },
+            actionOptions: {
+              upload: {},
+              uploadStream: {},
+              delete: {},
+            },
+          }
+          : {}),
+          security: {
+            allowedTypes: allowedMediaTypes,
+            deniedTypes,
+          },
       },
     },
-  },
-});
+  };
+};
 
 export default config;
